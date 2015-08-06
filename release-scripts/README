@@ -1,0 +1,114 @@
+#!/bin/bash
+
+set -e
+
+# This is an executable README!
+
+# Definition of terms as it applies to openxt:
+#
+#   manifest: a file containing a list of git repositories and associated source hashes
+#
+#   named tag: a snapshot that is not associated with a version, but instead
+#              a meaningful textual reference
+#
+#   version tag: a snapshot that is specific referring to a numbered version
+#                must be of form "v#.#.#" if  
+#
+#   branch: refers to a git branch that exists in all applicable proejct repositories
+#
+
+# This guide will walk through the process of creating a new, versioned release branch
+# Specifically it will take the contents of branch "master" and use it as the
+# starting point for a new branch, "stable-4", which will include a versioned
+# tag 4.0.0.  Some changes will be made and a 4.0.1 will be created as well.yes
+
+##################################################################
+# PREPARATION
+
+# First let us orient ourselves - we need to be in the release-scripts directory
+SCRIPT_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+cd "${SCRIPT_PATH}"
+
+# Clean up from any previous attempts
+git checkout repository.list
+rm -rf clones
+rm -rf readme-fork
+
+# Now let us create a local fork to experiment with
+SOURCES_PATH="$(readlink -m ${SCRIPT_PATH}/readme-fork)"
+mkdir -p "${SOURCES_PATH}"
+
+for repo in $(cat repository.list); do
+    base_repo="$(basename "${repo}" .git)"
+    git clone --mirror "${repo}" "${SOURCES_PATH}/${base_repo}.git"
+    git clone "${SOURCES_PATH}/${base_repo}.git" "${SOURCES_PATH}/${base_repo}"
+done
+
+# build new repository.list pointing to our local bits
+for repo in $(cat repository.list); do
+    base_repo="$(basename "${repo}")"
+    new_url="${SOURCES_PATH}/${base_repo}"
+    echo "${new_url}" >> repository-local.list
+done
+
+# don't worry, we will undo this later, thanks git!
+mv repository-local.list repository.list
+
+##################################################################
+echo "GENERATING A MANIFEST"
+# ./openxt-generate-manifest.sh <branch-name> <manifest-out>
+
+# To generate a manifest from branch "master":
+./openxt-generate-manifest.sh master readme-fork/stable_4.lst
+
+##################################################################
+echo "CREATING A BRANCH FROM MANIFEST"
+# ./openxt-branch-manifest.sh <manifest> <branch-name>
+
+# To create "stable-4" branch from manifest created previously:
+./openxt-branch-manifest.sh readme-fork/stable_4.lst stable-4
+
+##################################################################
+echo "COMMIT VERSION UPDATE IN THE NEW BRANCH"
+# ./openxt-branch-manifest.sh <branch-name> <tag-name>
+
+# Create a tag to indiciate version 4.0.0, with tag "v4.0.0"
+./openxt-set-version.sh stable-4 v4.0.0
+
+##################################################################
+echo "GENERATE TAG FOR NEWLY CREATED VERSION"
+# ./openxt-tag-manifest.sh <manifest> <tag-name>
+
+# Regenerate manifest from branch "stable-4" for tagging:
+./openxt-generate-manifest.sh stable-4 readme-fork/v4_0_0.lst
+
+# Create tag v4.0.0
+./openxt-tag-manifest.sh readme-fork/v4_0_0.lst v4.0.0
+
+##################################################################
+echo "FAKE SOME CHANGES"
+
+pushd readme-fork/xenfb2
+git fetch --all
+git checkout stable-4
+echo "did something in xenfb2" > newfile
+git add newfile
+git commit -a --signoff -m "xenfb2: didn't do much of anything"
+git push origin stable-4:stable-4
+popd
+
+##################################################################
+echo "CREATE AND TAG VERSION v4.0.1"
+
+./openxt-set-version.sh stable-4 v4.0.1
+./openxt-generate-manifest.sh stable-4 readme-fork/v4_0_1.lst
+./openxt-tag-manifest.sh readme-fork/v4_0_1.lst v4.0.1
+
+##################################################################
+echo "LET'S CHECK THAT DIFF"
+
+./openxt-diff-refs.sh v4.0.0 v4.0.1
+
+echo "done!"
+
+

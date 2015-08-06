@@ -1,0 +1,128 @@
+function tag_repo() {
+    repo="${1}"
+    tagname="${2}"
+    srcrev="${3}"
+    rpath="clones/$(basename "${repo}" .git)"
+
+    pushd "${rpath}" 2>&1 >/dev/null
+    git checkout "${srcrev}"
+    git tag "${tagname}"
+    git push origin tag "${tagname}"
+    popd 2>&1 >/dev/null
+}
+
+function untag_repo() {
+    repo="${1}"
+    tagname="${2}"
+    rpath="clones/$(basename "${repo}" .git)"
+
+    pushd "${rpath}" 2>&1 >/dev/null
+    git tag -d "${tagname}" || true
+    git push origin ":refs/tags/${tagname}" || true
+    popd 2>&1 >/dev/null
+}
+
+function branch_repo() {
+    repo="${1}"
+    branchname="${2}"
+    srcrev="${3}"
+    rpath="clones/$(basename "${repo}" .git)"
+
+    pushd "${rpath}" 2>&1 >/dev/null
+    git checkout -b "${branchname}" "${srcrev}"
+    git push origin "${branchname}":"${branchname}"
+    popd 2>&1 >/dev/null
+}
+
+function checkout_and_update_repo() {
+    repo="${1}"
+    optremotename="${2}"
+    optremotebaseurl="${3}"
+
+    rpath="clones/$(basename "${repo}" .git)"
+
+    if [[ ! -d "${rpath}" ]]; then
+        git clone "${repo}" "${rpath}"
+    fi
+
+    echo "fetching updates for: ${repo}"
+
+    pushd "${rpath}" 2>&1 >/dev/null
+    if [[ -n "${optremotebaseurl}" && -n "${optremotename}" ]]; then
+        git remote add "${optremotename}" "${optremotebaseurl}/$(basename "${repo}")" >/dev/null 2>&1 || true
+    fi
+
+    git tag -l | xargs git tag -d >/dev/null 2>&1
+    git fetch --all >/dev/null 2>&1
+    git fetch --tags >/dev/null 2>&1
+    popd 2>&1 >/dev/null
+}
+
+function checkout_and_update_manifest_repos() {
+    local manifest="${1}"
+
+    for x in $(cat "${manifest}"); do
+        repo=$(echo "${x}" | awk -F "|" '{print $1}')
+        checkout_and_update_repo "${repo}"
+    done
+}
+
+function git_log_diff() {
+    local repo="${1}"
+    local since_ref="${2}"
+    local until_ref="${3}"
+    local rpath="clones/$(basename "${repo}" .git)"
+
+    pushd "${rpath}" 2>&1 >/dev/null
+    local newcommits=$(git log --no-merges ${since_ref}..${until_ref})
+    local lostcommits=$(git log --no-merges ${until_ref}..${since_ref})
+    popd 2>&1 >/dev/null
+
+    if [[ -z "${newcommits}" && -z "${lostcommits}" ]]; then
+        return
+    fi
+
+    echo "***********************************"
+    echo "[${repo}]"
+    echo ""
+
+    if [[ -z ${newcommits} ]]; then
+        echo "(none)"
+    else
+        echo "${newcommits}"
+    fi
+
+    echo ""
+
+    if [[ -n "${lostcommits}" ]]; then
+        echo "***********************************"
+        echo "[${repo}] - !! WARNING: COMMITS DROPPED !!"
+        echo ""
+        echo "${lostcommits}"
+        echo ""
+    fi
+}
+
+function git_merge_ff_only() {
+    repo="${1}"
+    srcremote="${2}"
+    srcbranch="${3}"
+    dstremote="${4}"
+    dstbranch="${5}"
+
+    rpath="clones/$(basename "${repo}" .git)"
+
+    pushd "${rpath}" 2>&1 >/dev/null
+    git checkout "${dstbranch}" || git checkout -b "${dstbranch}" "${dstremote}/${srcbranch}"
+    git merge --ff-only "${srcremote}/${srcbranch}" 2>&1
+    git push -u "${dstremote}" "${dstbranch}":"${dstbranch}"
+    popd 2>&1 >/dev/null
+}
+
+function manifest() {
+    local repo="${1}"
+    local branch="${2}"
+    local out="${3}"
+    srcrev=$(git ls-remote "${repo}" "${branch}" | awk '{print $1}')
+    echo "${repo}|${srcrev}" | tee -a "${out}"
+}
