@@ -1,5 +1,6 @@
 git://github.com/OpenXT/blktap.git
 git://github.com/OpenXT/bootage.git
+git://github.com/OpenXT/bvt.git
 git://github.com/OpenXT/dm-agent.git
 git://github.com/OpenXT/dm-wrapper.git
 git://github.com/OpenXT/fbtap.git
