@@ -63,6 +63,8 @@ META_JAVA_TAG=5d528acac0eab6cfaa4ed3c290c7db3acd5047bf
 META_SELINUX_REPO=git://git.yoctoproject.org/meta-selinux
 META_SELINUX_TAG=8e952c7da126d30f4aecb33abd3ef9252785cb40
 
+META_QT5_REPO=git://github.com/cjp256/meta-qt5.git
+META_QT5_TAG=404c31ac86cf9a86c9a1d5b30b6acf55194ca936
 # End of configuration
 
 die() {
@@ -113,6 +115,7 @@ if [ "$1" != "env" ]; then
   getgit $REPOS/meta-openembedded $META_OE_REPO $META_OE_TAG
   getgit $REPOS/meta-java $META_JAVA_REPO $META_JAVA_TAG
   getgit $REPOS/meta-selinux $META_SELINUX_REPO $META_SELINUX_TAG
+  getgit $REPOS/meta-qt5 $META_QT5_REPO $META_QT5_TAG
 fi
 
 if [ ! -e $OE_XENCLIENT_DIR/conf/local.conf ]; then
