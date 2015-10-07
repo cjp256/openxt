@@ -112,6 +112,10 @@ if [ "$1" != "env" ]; then
       fi
   done
   getgit $REPOS/openembedded-core $OE_CORE_REPO $OE_CORE_TAG
+  # packageconfig bugfix, can be dropped when we modernize OE
+  pushd $REPOS/openembedded-core
+      git cherry-pick 884cab0428cff2ffd070b6f36b688ca9851fbe43
+  popd
   getgit $REPOS/meta-openembedded $META_OE_REPO $META_OE_TAG
   getgit $REPOS/meta-java $META_JAVA_REPO $META_JAVA_TAG
   getgit $REPOS/meta-selinux $META_SELINUX_REPO $META_SELINUX_TAG
