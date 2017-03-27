@@ -1,0 +1,17 @@
+version: '2'
+
+services:
+    openxt-builder:
+        image: openxt-builder:master
+        user: build
+        stdin_open: true
+        tty: true
+        security_opt:
+            - seccomp:unconfined
+
+        command: linux32 /home/build/build.sh
+
+        volumes:
+            - ~/work/openxt:/work
+
+        working_dir: /work
